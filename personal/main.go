@@ -2,10 +2,12 @@ package main
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"image/color"
 	"log"
 	"math/rand"
 	"time"
+	"fmt"
 )
 
 const (
@@ -13,6 +15,8 @@ const (
 	screenHeight = 480
 	ballWidth = 20
 	ballHeight = 20
+	ballXSpeed = 3
+	ballYSpeed = 3
 
 	paddleWidth = 10
 	paddleHeight = 80
@@ -28,6 +32,9 @@ type Game struct{
 
 	leftPaddleY, rightPaddleY float64
 	leftPaddle, rightPaddle *ebiten.Image
+	p1score, p2score int
+
+	pauseTime time.Duration
 }
 
 func newGame() *Game {
@@ -43,8 +50,8 @@ func newGame() *Game {
 	return &Game{
 		ballX: screenWidth/2 - ballWidth/2,
 		ballY: screenHeight/2 - ballHeight/2,
-		ballVX: 2,
-		ballVY: 2,
+		ballVX: ballXSpeed,
+		ballVY: ballYSpeed,
 		ballImage: ball,
 		ballColor: color.White,
 
@@ -53,10 +60,18 @@ func newGame() *Game {
 		leftPaddleY: screenHeight/2 - paddleHeight/2,
 		rightPaddleY: screenHeight/2 - paddleHeight/2,
 
+		pauseTime: 0,
+		p1score: 0,
+		p2score: 0,
+
 	}
 }
 
 func (g *Game) Update() error {
+	if(g.pauseTime > 0){
+		g.pauseTime -= time.Second / 60
+		return nil
+	}
 	//players
 	if ebiten.IsKeyPressed(ebiten.KeyW) {
 		if(g.leftPaddleY > 0) {
@@ -107,6 +122,16 @@ func (g *Game) Update() error {
 			g.ballColor = randomColor()
 		}
 	}
+
+	if g.ballX < 0 {
+		g.p1score++
+		g.pauseTime = 1 * time.Second
+		g.resetBall()
+	} else if g.ballX + ballWidth > screenWidth {
+		g.p2score++
+		g.pauseTime = 1 * time.Second
+		g.resetBall()
+	}
 	return nil
 }
 
@@ -126,6 +151,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	rightOpts := &ebiten.DrawImageOptions{}
 	rightOpts.GeoM.Translate(screenWidth - paddleOffset - paddleWidth, g.rightPaddleY)
 	screen.DrawImage(g.rightPaddle, rightOpts)
+
+	leftScore := fmt.Sprintf("Player 1: %d", g.p1score)
+	rightScore := fmt.Sprintf("Player 2: %d", g.p2score)
+	ebitenutil.DebugPrint(screen, leftScore)
+	ebitenutil.DebugPrintAt(screen, rightScore, screenWidth-70, 0)
 }
 
 //layout sets screen size, returns width and height
@@ -144,6 +174,12 @@ func randomColor() color.Color {
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
+}
+
+func (g *Game) resetBall() {
+	g.ballX = screenWidth/2 - ballWidth/2
+	g.ballY = screenHeight/2 - ballHeight/2
+	g.ballVX = -g.ballVX
 }
 
 func main() {
